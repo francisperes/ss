@@ -513,6 +513,22 @@ namespace SS_OpenCV
             his.ShowDialog();
         }
 
+        private void CompligToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (img == null) // verify if the image is already opened
+                return;
+
+            //copy Undo Image
+            imgUndo = img.Copy();
+
+            ImageClass.ConnectedComponents(img);
+
+            ImageViewer.Image = img.Bitmap;
+            ImageViewer.Refresh(); // refresh image on the screen
+
+            Cursor = Cursors.Default; // normal cursor
+        }
+
         private void ZoomToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (img == null) // verify if the image is already opened

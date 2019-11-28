@@ -2272,7 +2272,14 @@ namespace SS_OpenCV
             // Goto https://shervinemami.info/colorConversion.html for implementations
         }
 
+<<<<<<< HEAD
         public unsafe static void ConvertHSVToRGB(Image<Bgr, byte> img)
+=======
+
+        //TF
+        //used in Signs, TODO
+        public unsafe static void ConvertToHSV(Image<Bgr, byte> img)
+>>>>>>> 641c8a4e91a129a99139eb87265ce6003c156f0f
         {
             float fR, fG, fB;
             float fH, fS, fV;
@@ -2491,6 +2498,7 @@ namespace SS_OpenCV
             ConvertToBW(img, threshold);
         }
 
+<<<<<<< HEAD
         public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
                                 out List<string[]> warningSign, out List<string[]> prohibitionSign)
         {
@@ -2500,6 +2508,102 @@ namespace SS_OpenCV
             // FindLimitSigns(whiteObjects, redObjects, out limitSign);
             // FindWarningSigns(whiteObjects, redObjects, out warningSign);
             // FindProhibitionSigns(whiteObjects, redObjects, out prohibitionSign);
+=======
+        public unsafe static void ConnectedComponents(Image<Bgr, byte> img)
+        {
+            int x, y;
+            ConvertToBW_Otsu(img);
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+
+            int nChannels = mipl.nChannels;
+            int height = img.Height;
+            int width = img.Width;
+            int padding = mipl.widthStep - mipl.nChannels * mipl.width;
+            int widthStep = mipl.widthStep;
+            int lastXPixel = width - 1;
+            int lastYPixel = height - 1;
+
+            int n_swapped = 0;
+            int label = 1;
+            //
+            do
+            {
+                n_swapped = 0;
+                label = 1;
+                for (y = 1; y < height - 1; y++)
+                {
+                    for (x = 1; x < width - 1; x++)
+                    {
+                        if ((data_ptr + x * nChannels + y * widthStep)[0] != 0)
+                        {
+                            int min = label;
+
+                            if((data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] != 0 && (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] < min)
+                            {
+                                min = (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0];
+                            }
+                            if ((data_ptr + x * nChannels + (y - 1) * widthStep)[0] != 0 && (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] < min)
+                            {
+                                min = (data_ptr + x * nChannels + (y - 1) * widthStep)[0];
+                            }
+                            if ((data_ptr + (x + 1) * nChannels + (y - 1) * widthStep)[0] != 0 && (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] < min)
+                            {
+                                min = (data_ptr + (x + 1) * nChannels + (y - 1) * widthStep)[0];
+                            }
+                            if ((data_ptr + (x - 1)  * nChannels + y * widthStep)[0] != 0 && (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] < min)
+                            {
+                                min = (data_ptr + (x - 1) * nChannels + y * widthStep)[0];
+                            }
+                            if ((data_ptr + (x + 1) * nChannels + y * widthStep)[0] != 0 && (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] < min)
+                            {
+                                min = (data_ptr + (x + 1) * nChannels + y * widthStep)[0];
+                            }
+                            if ((data_ptr + (x - 1) * nChannels + (y + 1) * widthStep)[0] != 0 && (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] < min)
+                            {
+                                min = (data_ptr + (x - 1) * nChannels + (y + 1) * widthStep)[0];
+                            }
+                            if ((data_ptr + x * nChannels + (y + 1) * widthStep)[0] != 0 && (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] < min)
+                            {
+                                min = (data_ptr + x * nChannels + (y + 1) * widthStep)[0];
+                            }
+                            if ((data_ptr + (x + 1) * nChannels + (y + 1) * widthStep)[0] != 0 && (data_ptr + (x - 1) * nChannels + (y - 1) * widthStep)[0] < min)
+                            {
+                                min = (data_ptr + (x + 1) * nChannels + (y + 1) * widthStep)[0];
+                            }
+
+                            if ((data_ptr + x * nChannels + y * widthStep)[0] == 255 && min == label)
+                            {
+                                (data_ptr + x * nChannels + y * widthStep)[0] = (byte)min;
+                                (data_ptr + x * nChannels + y * widthStep)[1] = (byte)min;
+                                (data_ptr + x * nChannels + y * widthStep)[2] = (byte)min;
+                                label++;
+                                n_swapped++;
+                            }
+                            else if (min != label)
+                            {
+                                (data_ptr + x * nChannels + y * widthStep)[0] = (byte)min;
+                                (data_ptr + x * nChannels + y * widthStep)[1] = (byte)min;
+                                (data_ptr + x * nChannels + y * widthStep)[2] = (byte)min;
+                            }
+                        }
+                    }
+                }
+            } while (n_swapped != 0);
+        }
+
+        public unsafe static void DetectSigns(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy)
+        {
+            //2 images: one is binary using red component rather than RGB
+            Image<Bgr, byte> RedBinImg = img.Clone();
+            Image<Bgr, byte> BinImg = img.Clone();
+            ConvertToRed_Otsu(RedBinImg);
+            ConvertToBW_Otsu(BinImg);
+
+            //componentes ligados algorithm
+            ConnectedComponents(RedBinImg);
+            ConnectedComponents(BinImg);
+>>>>>>> 641c8a4e91a129a99139eb87265ce6003c156f0f
 
             // Return
             limitSign = new List<string[]>();
