@@ -405,6 +405,10 @@ namespace SS_OpenCV
 
         public unsafe static void Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, double degrees)
         {
+            ConvertRGBToHSV(img);
+            ConvertToBR_HSV(img);
+            ConvertHSVToRGB(img);
+            return;
             MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
             byte* data_ptr_clone = (byte*)imgCopy.MIplImage.imageData.ToPointer();
@@ -668,6 +672,7 @@ namespace SS_OpenCV
                 }
             }
         }
+
         public unsafe static void NonUniform(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, float[,] matrix, float matrixWeight)
         {
             int x, y;
@@ -2065,7 +2070,8 @@ namespace SS_OpenCV
             int width = img.Width;
             int widthStep = mipl.widthStep;
 
-            for (y = 0; y < height; y++) 
+            for (y = 0; y < height; y++)
+            {
                 for (x = 0; x < width; x++)
                 {
                     if ((data_ptr + x * nChannels + y * widthStep)[0] > threshold)
@@ -2080,11 +2086,11 @@ namespace SS_OpenCV
                         (data_ptr + x * nChannels + y * widthStep)[2] = 0;
                     }
                 }
+            }
         }
 
         public unsafe static void ConvertToBW_Otsu(Image<Bgr, byte> img)
         {
-            int x, y;
             MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
 
@@ -2131,11 +2137,282 @@ namespace SS_OpenCV
             ConvertToBW(img, threshold);
         }
 
-
-        //used in Signs, TODO
-        public unsafe static void ConvertToHSV(Image<Bgr, byte> img)
+        // TODO, THIS IS JUST A TESTING VERSION
+        public unsafe static void ConvertRGBToHSV(Image<Bgr, byte> img)
         {
+            float fR, fG, fB;
+            float fH, fS, fV;
+            const float FLOAT_TO_BYTE = 255.0f;
+            const float BYTE_TO_FLOAT = 1.0f / FLOAT_TO_BYTE;
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+            int nChannels = mipl.nChannels;
+            int height = mipl.height;
+            int width = mipl.width;
+            int widthStep = mipl.widthStep;
 
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    // OpenCV RBG order is B, G, R
+                    byte* p_Pixel = (data_ptr + x * nChannels + y * widthStep); // RBG pointer
+                    int bB = p_Pixel[0];
+                    int bG = p_Pixel[1];
+                    int bR = p_Pixel[2];
+
+                    // Convert to float
+                    fR = bR * BYTE_TO_FLOAT;
+                    fG = bG * BYTE_TO_FLOAT;
+                    fB = bB * BYTE_TO_FLOAT;
+
+                    // Convert from RGB to HSV, using float ranges 0.0 to 1.0
+                    float fDelta;
+                    float fMin, fMax;
+                    int iMax;
+                    // Get the min and max
+                    if (bB < bG)
+                    {
+                        if (bB < bR)
+                        {
+                            fMin = fB;
+                            if (bR > bG)
+                            {
+                                iMax = bR;
+                                fMax = fR;
+                            }
+                            else
+                            {
+                                iMax = bG;
+                                fMax = fG;
+                            }
+                        }
+                        else
+                        {
+                            fMin = fR;
+                            fMax = fG;
+                            iMax = bG;
+                        }
+                    }
+                    else if (bG < bR)
+                    {
+                        fMin = fG;
+                        if (bB > bR)
+                        {
+                            fMax = fB;
+                            iMax = bB;
+                        }
+                        else
+                        {
+                            fMax = fR;
+                            iMax = bB;
+                        }
+                    }
+                    else 
+                    {
+                        fMin = fR;
+                        fMax = fB;
+                        iMax = bB;
+                    }
+
+                    fDelta = fMax - fMin;
+                    fV = fMax;
+                    if (iMax != 0)
+                    {
+                        fS = fDelta / fMax;
+                        float ANGLE_TO_UNIT = 1.0f / (6.0f * fDelta);
+                        if (iMax == bR)
+                        {
+                            fH = (fG - fB) * ANGLE_TO_UNIT;
+                        }
+                        else if (iMax == bG)
+                        {
+                            fH = (2.0f / 6.0f) + (fB - fR) * ANGLE_TO_UNIT;
+                        }
+                        else
+                        {
+                            fH = (4.0f / 6.0f) + (fR - fG) * ANGLE_TO_UNIT;
+                        }
+                        // Wrap outlier hues around the circle
+                        if (fH < 0.0f)
+                        {
+                            fH += 1.0f;
+                        }
+                        if (fH >= 1.0f)
+                        {
+                            fH -= 1.0f;
+                        }
+                    }
+                    else
+                    {
+                        // Colour is pure black
+                        fS = 0;
+                        fH = 0;
+                    }
+
+                    // Convert from floats to 8-bit integers
+                    int bH = (int)(0.5f + fH * 255.0f);
+                    int bS = (int)(0.5f + fS * 255.0f);
+                    int bV = (int)(0.5f + fV * 255.0f);
+
+                    // Clip the values to make sure it fits within the 8bits.
+			        if (bH > 255)   bH = 255;
+		    	    if (bH < 0)    	bH = 0;
+			        if (bS > 255)  	bS = 255;
+			        if (bS < 0)   	bS = 0;
+			        if (bV > 255)   bV = 255;
+			        if (bV < 0)     bV = 0;
+                    
+                    // Set HSV values
+                    p_Pixel[0] = (byte)bH;
+                    p_Pixel[1] = (byte)bS;
+                    p_Pixel[2] = (byte)bV;
+                }
+            }
+            // Goto https://shervinemami.info/colorConversion.html for implementations
+        }
+
+        public unsafe static void ConvertHSVToRGB(Image<Bgr, byte> img)
+        {
+            float fR, fG, fB;
+            float fH, fS, fV;
+            const float FLOAT_TO_BYTE = 255.0f;
+            const float BYTE_TO_FLOAT = 1.0f / FLOAT_TO_BYTE;
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+            int nChannels = mipl.nChannels;
+            int height = mipl.height;
+            int width = mipl.width;
+            int widthStep = mipl.widthStep;
+
+            for (int y = 0; y < height; y++) {
+		        for (int x = 0; x < width; x++) {
+                    byte* p_Pixel = (data_ptr + x * nChannels + y * widthStep); // RBG pointer 
+                    int bH = p_Pixel[0];
+                    int bS = p_Pixel[1];
+                    int bV = p_Pixel[2];
+
+                    // Convert from 8-bit to float
+                    fH = bH * BYTE_TO_FLOAT;
+                    fS = bS * BYTE_TO_FLOAT;
+                    fV = bV * BYTE_TO_FLOAT;
+
+                    // Convert from HSV to RGB, using float ranges from 0.0 to 1.0
+                    int iI;
+                    float fI, fF, p, q, t;;
+
+                    if (bS == 0)
+                    {
+                        // Grey
+                        fR = fG = fB = fV;
+                    }
+                    else
+                    {
+                        if (fH >= 1.0f)
+                        {
+                            fH = 0.0f;
+                        }
+
+                        fH *= 6.0f;
+                        fI = (float)Math.Truncate(fH);
+                        iI = (int)fH;
+                        fF = fH - fI;
+
+                        p = fV * (1.0f - fS);
+                        q = fV * (1.0f - fS * fF);
+                        t = fV * (1.0f - fS * (1.0f - fF));
+
+                        switch(iI)
+                        {
+                        case 0:
+                            fR = fV;
+                            fG = t;
+                            fB = p;
+                            break;
+                        case 1:
+                            fR = q;
+                            fG = fV;
+                            fB = p;
+                            break;
+                        case 2:
+                            fR = p;
+                            fG = fV;
+                            fB = t;
+                            break;
+                        case 3:
+                            fR = p;
+                            fG = q;
+                            fB = fV;
+                            break;
+                        case 4:
+                            fR = t;
+                            fG = p;
+                            fB = fV;
+                            break;
+                        default:
+                            fR = fV;
+                            fG = p;
+                            fB = q;
+                            break;
+                        }
+                    }
+
+                    // Convert from floats to 8-bit integers
+                    int bR = (int)(fR * FLOAT_TO_BYTE);
+                    int bG = (int)(fG * FLOAT_TO_BYTE);
+                    int bB = (int)(fB * FLOAT_TO_BYTE);
+
+                    // Clip the values to make sure it fits within the 8bits.
+			        if (bR > 255)
+			        	bR = 255;
+		        	if (bR < 0)
+		           		bR = 0;
+		        	if (bG > 255)
+			        	bG = 255;
+		        	if (bG < 0)
+		        		bG = 0;
+		        	if (bB > 255)
+		        		bB = 255;
+		        	if (bB < 0)
+		        		bB = 0;
+        
+                    p_Pixel[0] = (byte)bB;
+                    p_Pixel[1] = (byte)bG;
+                    p_Pixel[2] = (byte)bR;
+                }
+            }
+        }
+
+        public unsafe static void ConvertToBR_HSV(Image<Bgr, byte> img)
+        {
+            int x, y;
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+
+            int nChannels = mipl.nChannels;
+            int height = img.Height;
+            int width = img.Width;
+            int widthStep = mipl.widthStep;
+
+            for (y = 0; y < height; y++)
+            {
+                for (x = 0; x < width; x++)
+                {
+                    if (((data_ptr + x * nChannels + y * widthStep)[0] <= 10 || (data_ptr + x * nChannels + y * widthStep)[0] >= 160) &&
+                        ((data_ptr + x * nChannels + y * widthStep)[1] >= 100 && (data_ptr + x * nChannels + y * widthStep)[2] >= 100))
+                    {
+                        //(data_ptr + x * nChannels + y * widthStep)[0] = 255;
+                        //(data_ptr + x * nChannels + y * widthStep)[1] = 255;
+                        //(data_ptr + x * nChannels + y * widthStep)[2] = 255;
+                        // Preserve colour
+                    } else
+                    {
+                        (data_ptr + x * nChannels + y * widthStep)[0] = 0;
+                        (data_ptr + x * nChannels + y * widthStep)[1] = 0;
+                        (data_ptr + x * nChannels + y * widthStep)[2] = 0;
+                    }
+                }
+            } 
         }
 
         //used in ConvertToRed_Otsu, TODO
@@ -2168,7 +2445,6 @@ namespace SS_OpenCV
         //maybe TODO
         public unsafe static void ConvertToRed_Otsu(Image<Bgr, byte> img)
         {
-            int x, y;
             MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
 
@@ -2215,59 +2491,50 @@ namespace SS_OpenCV
             ConvertToBW(img, threshold);
         }
 
-        public unsafe static void DetectSigns(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy)
+        public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
+                                out List<string[]> warningSign, out List<string[]> prohibitionSign)
         {
-            //2 images: one is binary using red component rather than RGB
-            Image<Bgr, byte> RedBinImg = img.Clone();
-            ConvertToRed_Otsu(RedBinImg);
+            // GetWhiteObjects(otsu, out whiteObjects);
+            // GetRedObjects(otsu_red, out redObjects);
 
-            //componentes ligados algorithm
+            // FindLimitSigns(whiteObjects, redObjects, out limitSign);
+            // FindWarningSigns(whiteObjects, redObjects, out warningSign);
+            // FindProhibitionSigns(whiteObjects, redObjects, out prohibitionSign);
 
+            // Return
+            limitSign = new List<string[]>();
+            warningSign = new List<string[]>();
+            prohibitionSign = new List<string[]>();
         }
 
         public static Image<Bgr, byte> Signs(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, out List<string[]> limitSign, 
                                 out List<string[]> warningSign, out List<string[]> prohibitionSign, int level)
         {
-            ConvertToHSV(img);
+            // New architecture
+            //ConvertRGBToHSV(img);
+            //ConvertToBR_HSV(img);
+            //ConvertHSVToRGB(img);
+            // You can test BR_HSV with this ^^
 
-            DetectSigns(img, imgCopy);
+            //ConvertToBR_HSV(hsv_image);
+            //ConvertToBW(imgCopy);
 
+            //GetConnectedComponents_BR(hsv_image);
+            //GetConnectedComponents_BW(imgCopy);
 
+            // DetectSigns();
 
-
-
-
-
-            //dummy code so it won't give errors
             limitSign = new List<string[]>();
             warningSign = new List<string[]>();
             prohibitionSign = new List<string[]>();
 
+            Image<Bgr, byte> otsu_red = img.Clone();
+            Image<Bgr, byte> otsu = img.Clone();
 
-            string[] dummy_vector1 = new string[5];
-            dummy_vector1[0] = "70";
-            dummy_vector1[1] = "1160";
-            dummy_vector1[2] = "330";
-            dummy_vector1[3] = "1200";
-            dummy_vector1[4] = "350";
+            ConvertToRed_Otsu(otsu_red);
+            ConvertToBW_Otsu(otsu);
 
-            string[] dummy_vector2 = new string[5];
-            dummy_vector2[0] = "-1";
-            dummy_vector2[1] = "669";
-            dummy_vector2[2] = "469";
-            dummy_vector2[3] = "680";
-            dummy_vector2[4] = "480";
-
-            string[] dummy_vector3 = new string[5];
-            dummy_vector3[0] = "-1";
-            dummy_vector3[1] = "669";
-            dummy_vector3[2] = "469";
-            dummy_vector3[3] = "680";
-            dummy_vector3[4] = "480";
-
-            limitSign.Add(dummy_vector1);
-            warningSign.Add(dummy_vector2);
-            prohibitionSign.Add(dummy_vector3);
+            DetectSigns(otsu, otsu_red, out limitSign, out warningSign, out prohibitionSign);
 
             return img;
         }
