@@ -521,7 +521,7 @@ namespace SS_OpenCV
             //copy Undo Image
             imgUndo = img.Copy();
 
-            ImageClass.ConnectedComponents(img);
+            //ImageClass.ConnectedComponents(img);
 
             ImageViewer.Image = img.Bitmap;
             ImageViewer.Refresh(); // refresh image on the screen

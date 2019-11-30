@@ -406,10 +406,57 @@ namespace SS_OpenCV
         public unsafe static void Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, double degrees)
         {
             ConvertRGBToHSV(img);
+            // É capaz de ser uma boa ideia fazer um Fecho antes de processar
+            // a imagem que vamos binarizar a vermelho (5x5 é capaz de chegar)
             ConvertToBR_HSV(img);
+            int[] labels = GetConnectedComponents_BR(img);
             ConvertHSVToRGB(img);
-            return;
+
             MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+            int nChannels = mipl.nChannels;
+            int height = img.Height;
+            int width = img.Width;
+            int padding = mipl.widthStep - mipl.nChannels * mipl.width;
+            int widthStep = mipl.widthStep;
+            var colours = new Dictionary<int, int[]>();
+            
+            for (int y = 1; y < height - 1; y++)
+            {
+                for (int x = 1; x < width - 1; x++)
+                {
+                    int label = labels[x + y * widthStep];
+                    if (label != 0)
+                    {
+                        if (colours.ContainsKey(label))
+                        {
+                            (data_ptr + x * nChannels + y * widthStep)[0] = (byte)colours[label][0];
+                            (data_ptr + x * nChannels + y * widthStep)[1] = (byte)colours[label][1];
+                            (data_ptr + x * nChannels + y * widthStep)[2] = (byte)colours[label][2];
+                        }
+                        else
+                        {
+                            Random rand = new Random();
+                            int n1 = rand.Next(0, 255);
+                            int n2 = rand.Next(0, 255);
+                            int n3 = rand.Next(0, 255);
+                            int[] new_colour = {n1, n2, n3};
+
+                            // Apply colours
+                            (data_ptr + x * nChannels + y * widthStep)[0] = (byte)n1;
+                            (data_ptr + x * nChannels + y * widthStep)[1] = (byte)n2;
+                            (data_ptr + x * nChannels + y * widthStep)[2] = (byte)n3;
+
+                            colours.Add(label, new_colour);
+                        }
+                    }
+                }
+            }
+
+            return;
+
+            // The real Rotation function
+            /*MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
             byte* data_ptr_clone = (byte*)imgCopy.MIplImage.imageData.ToPointer();
 
@@ -444,7 +491,7 @@ namespace SS_OpenCV
                         (data_ptr + nChannels * x_dest + y_dest * widthStep)[2] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[2];
                     }
                 }
-            }
+            }*/
         }
 
         public unsafe static void Scale_point_xy(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, float scale_factor, int centerx, int centery)
@@ -2491,6 +2538,77 @@ namespace SS_OpenCV
             ConvertToBW(img, threshold);
         }
 
+        public unsafe static int[] GetConnectedComponents_BR(Image<Bgr, byte> hsv_image)
+        {
+            MIplImage mipl = hsv_image.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+            int nChannels = mipl.nChannels;
+            int height = mipl.height;
+            int width = mipl.width;
+            int widthStep = mipl.widthStep;
+            int image_size = mipl.imageSize; // Not sure if this is correct
+            int [] labels = new int[image_size];
+
+            int label_counter = 1;
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    byte* p_Pixel = (data_ptr + x * nChannels + y * widthStep);
+                    if (p_Pixel[0] != 0 && p_Pixel[1] != 0 && p_Pixel[2] != 0)
+                    {
+                        labels[x + y * widthStep] = label_counter;
+                        label_counter++;
+                    }
+                }
+            }
+
+            // Check for the smallest near label
+            // Cell orientation
+            //  -----------
+            // | 1 | 2 | 3 |
+            //  -----------
+            // | 4 | 5 | 6 |
+            //  -----------
+            // | 7 | 8 | 9 |
+            //  -----------
+            for (int y = 1; y < height - 1; y++)
+            {
+                for (int x = 1; x < width - 1; x++)
+                {
+                    int offset = x + y * widthStep;
+                    int label = labels[offset];
+
+                    int label1 = labels[(x - 1) + (y - 1) * widthStep];
+                    int label2 = labels[(x) + (y - 1) * widthStep];
+                    int label3 = labels[(x + 1) + (y - 1) * widthStep];
+                    int label4 = labels[(x - 1) + (y) * widthStep];
+                    int label6 = labels[(x + 1) + (y) * widthStep];
+                    int label7 = labels[(x - 1) + (y + 1) * widthStep];
+                    int label8 = labels[(x) + (y + 1) * widthStep];
+                    int label9 = labels[(x + 1) + (y + 1) * widthStep];
+                    
+                    if (label != 0)
+                    {
+                        // Check all nearby pixels
+                        if ((label1 != 0) && (label1 < label)) { label = label1; }
+                        if ((label2 != 0) && (label1 < label)) { label = label2; }
+                        if ((label3 != 0) && (label1 < label)) { label = label3; }
+                        if ((label4 != 0) && (label1 < label)) { label = label4; }
+                        if ((label6 != 0) && (label1 < label)) { label = label6; }
+                        if ((label7 != 0) && (label1 < label)) { label = label7; }
+                        if ((label8 != 0) && (label1 < label)) { label = label8; }
+                        if ((label9 != 0) && (label1 < label)) { label = label9; }
+
+                        // Update label value
+                        labels[offset] = label;
+                    }
+                }
+            }
+
+            return labels;
+        }
+
         public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
                                 out List<string[]> warningSign, out List<string[]> prohibitionSign)
         {
@@ -2512,7 +2630,10 @@ namespace SS_OpenCV
         {
             // New architecture
             //ConvertRGBToHSV(img);
+            // É capaz de ser uma boa ideia fazer um Fecho antes de processar
+            // a imagem que vamos binarizar a vermelho (5x5 é capaz de chegar)
             //ConvertToBR_HSV(img);
+            //GetConnectedComponents_BR(img);
             //ConvertHSVToRGB(img);
             // You can test BR_HSV with this ^^
 
