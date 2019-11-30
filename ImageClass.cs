@@ -420,6 +420,7 @@ namespace SS_OpenCV
             int padding = mipl.widthStep - mipl.nChannels * mipl.width;
             int widthStep = mipl.widthStep;
             var colours = new Dictionary<int, int[]>();
+            Random rand = new Random();
             
             for (int y = 1; y < height - 1; y++)
             {
@@ -436,7 +437,6 @@ namespace SS_OpenCV
                         }
                         else
                         {
-                            Random rand = new Random();
                             int n1 = rand.Next(0, 255);
                             int n2 = rand.Next(0, 255);
                             int n3 = rand.Next(0, 255);
@@ -2550,12 +2550,12 @@ namespace SS_OpenCV
             int [] labels = new int[image_size];
 
             int label_counter = 1;
-            for (int y = 0; y < height; y++)
+            for (int y = 1; y < height - 1; y++)
             {
-                for (int x = 0; x < width; x++)
+                for (int x = 1; x < width - 1; x++)
                 {
                     byte* p_Pixel = (data_ptr + x * nChannels + y * widthStep);
-                    if (p_Pixel[0] != 0 && p_Pixel[1] != 0 && p_Pixel[2] != 0)
+                    if (!(p_Pixel[0] == 0 && p_Pixel[1] == 0 && p_Pixel[2] == 0))
                     {
                         labels[x + y * widthStep] = label_counter;
                         label_counter++;
@@ -2572,6 +2572,10 @@ namespace SS_OpenCV
             //  -----------
             // | 7 | 8 | 9 |
             //  -----------
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
             for (int y = 1; y < height - 1; y++)
             {
                 for (int x = 1; x < width - 1; x++)
@@ -2591,14 +2595,14 @@ namespace SS_OpenCV
                     if (label != 0)
                     {
                         // Check all nearby pixels
-                        if ((label1 != 0) && (label1 < label)) { label = label1; }
-                        if ((label2 != 0) && (label1 < label)) { label = label2; }
-                        if ((label3 != 0) && (label1 < label)) { label = label3; }
-                        if ((label4 != 0) && (label1 < label)) { label = label4; }
-                        if ((label6 != 0) && (label1 < label)) { label = label6; }
-                        if ((label7 != 0) && (label1 < label)) { label = label7; }
-                        if ((label8 != 0) && (label1 < label)) { label = label8; }
-                        if ((label9 != 0) && (label1 < label)) { label = label9; }
+                        if ((label1 != 0) && (label1 < label)) { label = label1; changed = true; }
+                        if ((label2 != 0) && (label2 < label)) { label = label2; changed = true; }
+                        if ((label3 != 0) && (label3 < label)) { label = label3; changed = true; }
+                        if ((label4 != 0) && (label4 < label)) { label = label4; changed = true; }
+                        if ((label6 != 0) && (label6 < label)) { label = label6; changed = true; }
+                        if ((label7 != 0) && (label7 < label)) { label = label7; changed = true; }
+                        if ((label8 != 0) && (label8 < label)) { label = label8; changed = true; }
+                        if ((label9 != 0) && (label9 < label)) { label = label9; changed = true; }
 
                         // Update label value
                         labels[offset] = label;
@@ -2606,6 +2610,41 @@ namespace SS_OpenCV
                 }
             }
 
+            for (int y = height - 2; y > 1; y--)
+            {
+                for (int x = width -2; x > 1; x--)
+                {
+                    int offset = x + y * widthStep;
+                    int label = labels[offset];
+
+                    int label1 = labels[(x - 1) + (y - 1) * widthStep];
+                    int label2 = labels[(x) + (y - 1) * widthStep];
+                    int label3 = labels[(x + 1) + (y - 1) * widthStep];
+                    int label4 = labels[(x - 1) + (y) * widthStep];
+                    int label6 = labels[(x + 1) + (y) * widthStep];
+                    int label7 = labels[(x - 1) + (y + 1) * widthStep];
+                    int label8 = labels[(x) + (y + 1) * widthStep];
+                    int label9 = labels[(x + 1) + (y + 1) * widthStep];
+                    
+                    if (label != 0)
+                    {
+                        // Check all nearby pixels
+                        if ((label1 != 0) && (label1 < label)) { label = label1; changed = true; }
+                        if ((label2 != 0) && (label2 < label)) { label = label2; changed = true; }
+                        if ((label3 != 0) && (label3 < label)) { label = label3; changed = true; }
+                        if ((label4 != 0) && (label4 < label)) { label = label4; changed = true; }
+                        if ((label6 != 0) && (label6 < label)) { label = label6; changed = true; }
+                        if ((label7 != 0) && (label7 < label)) { label = label7; changed = true; }
+                        if ((label8 != 0) && (label8 < label)) { label = label8; changed = true; }
+                        if ((label9 != 0) && (label9 < label)) { label = label9; changed = true; }
+
+                        // Update label value
+                        labels[offset] = label;
+                    }
+                }
+            }
+            }
+            
             return labels;
         }
 
