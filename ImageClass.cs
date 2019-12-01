@@ -2703,11 +2703,13 @@ namespace SS_OpenCV
             int widthStep = mipl.widthStep;
 
             int mask_offset = (int)((mask_length - 1) / 2);
+            bool next_pixel = false;
 
             for (y = 5; y < height - 6; y++)
             {
                 for (x = 5; x < width - 6; x++)
                 {
+                    next_pixel = false;
                     for (int mask_y = 0; mask_y < mask_length; mask_y++)
                     {
                         for (int mask_x = 0; mask_x < mask_length; mask_x++)
@@ -2717,8 +2719,11 @@ namespace SS_OpenCV
                                 (data_ptr + x * nChannels + y * widthStep)[0] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[0];
                                 (data_ptr + x * nChannels + y * widthStep)[1] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[1];
                                 (data_ptr + x * nChannels + y * widthStep)[2] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[2];
+                                next_pixel = true;
                             }
+                            if (next_pixel) break;
                         }
+                        if (next_pixel) break;
                     }
                 }
             }
