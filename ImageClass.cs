@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Emgu.CV.Structure;
 using Emgu.CV;
+using System.Linq;
 
 namespace SS_OpenCV
 {
@@ -422,6 +423,7 @@ namespace SS_OpenCV
             var colours = new Dictionary<int, int[]>();
             Random rand = new Random();
             
+            // Set Random Colours to each label
             for (int y = 1; y < height - 1; y++)
             {
                 for (int x = 1; x < width - 1; x++)
@@ -452,9 +454,36 @@ namespace SS_OpenCV
                     }
                 }
             }
+            List<int> desired_labels = new List<int>();
+            var query = from label in labels
+                        group label by label into values
+                        select new { values, count = values.Count() };
+            
+            foreach (var item in query)
+            {
+                if (item.count > 2000)
+                {
+                    desired_labels.Add(item.values.Key);
+                }
+                
+            }
+
+            // Remove every label that isn't desired
+            for (int y = 1; y < height - 1; y++)
+            {
+                for (int x = 1; x < width - 1; x++)
+                {
+                    int label = labels[x + y * widthStep];
+                    if (!desired_labels.Contains(label))
+                    {
+                        (data_ptr + x * nChannels + y * widthStep)[0] = 0;
+                        (data_ptr + x * nChannels + y * widthStep)[1] = 0;
+                        (data_ptr + x * nChannels + y * widthStep)[2] = 0;
+                    }
+                }
+            }
 
             return;
-
             // The real Rotation function
             /*MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
@@ -2446,7 +2475,7 @@ namespace SS_OpenCV
                 for (x = 0; x < width; x++)
                 {
                     if (((data_ptr + x * nChannels + y * widthStep)[0] <= 10 || (data_ptr + x * nChannels + y * widthStep)[0] >= 160) &&
-                        ((data_ptr + x * nChannels + y * widthStep)[1] >= 100 && (data_ptr + x * nChannels + y * widthStep)[2] >= 100))
+                        ((data_ptr + x * nChannels + y * widthStep)[1] >= 80 && (data_ptr + x * nChannels + y * widthStep)[2] >= 80))
                     {
                         //(data_ptr + x * nChannels + y * widthStep)[0] = 255;
                         //(data_ptr + x * nChannels + y * widthStep)[1] = 255;
