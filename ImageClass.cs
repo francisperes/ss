@@ -453,7 +453,7 @@ namespace SS_OpenCV
                 }
             }
 
-            Close(img);
+            ImgClosing(img);
 
             return;
 
@@ -2724,12 +2724,12 @@ namespace SS_OpenCV
             }
         }
 
-        public unsafe static void Close(Image<Bgr, byte> image)
+        public unsafe static void ImgClosing(Image<Bgr, byte> image)
         {
-            int maskType = 11;
+            int maskType = 11; //can be set to any odd value >2 as long as proper care is taken not to try to read outside the image outlines
             
-            //Dilation(image, maskType);
-            //Erosion (image, maskType);
+            Dilation(image, maskType);
+            Erosion (image, maskType);
         }
 
         public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
