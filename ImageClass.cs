@@ -453,6 +453,8 @@ namespace SS_OpenCV
                 }
             }
 
+            Close(img);
+
             return;
 
             // The real Rotation function
@@ -2446,7 +2448,7 @@ namespace SS_OpenCV
                 for (x = 0; x < width; x++)
                 {
                     if (((data_ptr + x * nChannels + y * widthStep)[0] <= 10 || (data_ptr + x * nChannels + y * widthStep)[0] >= 160) &&
-                        ((data_ptr + x * nChannels + y * widthStep)[1] >= 100 && (data_ptr + x * nChannels + y * widthStep)[2] >= 100))
+                        ((data_ptr + x * nChannels + y * widthStep)[1] >= 80 && (data_ptr + x * nChannels + y * widthStep)[2] >= 80))
                     {
                         //(data_ptr + x * nChannels + y * widthStep)[0] = 255;
                         //(data_ptr + x * nChannels + y * widthStep)[1] = 255;
@@ -2646,6 +2648,88 @@ namespace SS_OpenCV
             }
             
             return labels;
+        }
+
+        public unsafe static void Dilation(Image<Bgr, byte> img, int mask_length)
+        {
+            int x, y;
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+
+            Image<Bgr, byte> imgClone = img.Clone();
+
+            byte* data_ptr_clone = (byte*)imgClone.MIplImage.imageData.ToPointer();
+
+            int nChannels = mipl.nChannels;
+            int height = img.Height;
+            int width = img.Width;
+            int widthStep = mipl.widthStep;
+
+            int mask_offset = (int)((mask_length - 1)/2);
+
+            for (y = 5; y < height - 6; y++)
+            {
+                for (x = 5; x < width - 6; x++)
+                {
+                    for (int mask_y = 0; mask_y < mask_length; mask_y++)
+                    {
+                        for (int mask_x = 0; mask_x < mask_length; mask_x++)
+                        {
+                            if ((data_ptr_clone + (x - mask_offset + mask_x)  * nChannels + (y - mask_offset + mask_y) * widthStep)[0] != 0)
+                            {
+                                (data_ptr + x * nChannels + y * widthStep)[0] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[0];
+                                (data_ptr + x * nChannels + y * widthStep)[1] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[1];
+                                (data_ptr + x * nChannels + y * widthStep)[2] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[2];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public unsafe static void Erosion(Image<Bgr, byte> img, int mask_length)
+        {
+            int x, y;
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+
+            Image<Bgr, byte> imgClone = img.Clone();
+
+            byte* data_ptr_clone = (byte*)imgClone.MIplImage.imageData.ToPointer();
+
+            int nChannels = mipl.nChannels;
+            int height = img.Height;
+            int width = img.Width;
+            int widthStep = mipl.widthStep;
+
+            int mask_offset = (int)((mask_length - 1) / 2);
+
+            for (y = 5; y < height - 6; y++)
+            {
+                for (x = 5; x < width - 6; x++)
+                {
+                    for (int mask_y = 0; mask_y < mask_length; mask_y++)
+                    {
+                        for (int mask_x = 0; mask_x < mask_length; mask_x++)
+                        {
+                            if ((data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[0] == 0)
+                            {
+                                (data_ptr + x * nChannels + y * widthStep)[0] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[0];
+                                (data_ptr + x * nChannels + y * widthStep)[1] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[1];
+                                (data_ptr + x * nChannels + y * widthStep)[2] = (byte)(data_ptr_clone + (x - mask_offset + mask_x) * nChannels + (y - mask_offset + mask_y) * widthStep)[2];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public unsafe static void Close(Image<Bgr, byte> image)
+        {
+            int maskType = 11;
+            
+            //Dilation(image, maskType);
+            //Erosion (image, maskType);
         }
 
         public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
