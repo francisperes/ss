@@ -454,6 +454,7 @@ namespace SS_OpenCV
                     }
                 }
             }
+
             List<int> desired_labels = new List<int>();
             var query = from label in labels
                         group label by label into values
@@ -465,7 +466,6 @@ namespace SS_OpenCV
                 {
                     desired_labels.Add(item.values.Key);
                 }
-                
             }
 
             // Remove every label that isn't desired
@@ -482,7 +482,77 @@ namespace SS_OpenCV
                     }
                 }
             }
+            
             ImgClosing(img);
+
+            //go through each label, gets y max goes through until it gets x min and then x max and then y min 
+
+            /*       max_y
+             * min_x       max_x
+             *       min_y
+             */
+            int label_count = labels.Count();
+            int [] max_y, min_y, max_x, min_x;
+
+            max_y = new int[label_count];
+            min_y = new int[label_count];
+            max_x = new int[label_count];
+            min_x = new int[label_count];
+
+            for (int i = 0; i < label_count; i++)
+                max_y[i] = 0;
+
+            for (int i = 0; i < label_count; i++)
+                min_y[i] = 0;
+
+            for (int i = 0; i < label_count; i++)
+                max_x[i] = 0;
+
+            for (int i = 0; i < label_count; i++)
+                min_x[i] = 0;
+
+            for (int y = 1; y < height - 1; y++)
+            {
+                for (int x = 1; x < width - 1; x++)
+                {
+                    int label = labels[x + y * widthStep];
+
+                    if (label != 0 && label < label_count) {
+                        if (max_y[label] == 0) 
+                            max_y[label] = y;
+                        if (min_y[label] == 0 || y > min_y[label])
+                            min_y[label] = y;
+                        if (max_x[label] == 0 || x > max_x[label])
+                            max_x[label] = x;
+                        if (min_x[label] == 0 || x < min_x[label])
+                            min_x[label] = x;
+                    }
+                }
+            }
+
+            for (int i = 0; i < label_count; i++)
+            {
+                //draw top red line 
+                int y = max_y[i];
+                int x;
+                for (x = min_x[i]; x < max_x[i]; x++)
+                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
+
+                //draw bottom red line
+                y = min_y[i];
+                for (x = min_x[i]; x < max_x[i]; x++)
+                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
+
+                //draw left red line
+                x = min_x[i];
+                for(y = max_y[i]; y < min_y[i]; y++)
+                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
+
+                //draw right red line
+                x = max_x[i];
+                for (y = max_y[i]; y < min_y[i]; y++)
+                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
+            }
 
             return;
             // The real Rotation function
