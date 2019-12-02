@@ -290,7 +290,7 @@ namespace SS_OpenCV
 
             ImageClass.Rotation(img, imgCopy, rad_degrees);
 
-            ImageViewer.Image = img.Bitmap;
+            ImageViewer.Image = imgCopy.Bitmap;
             ImageViewer.Refresh(); // refresh image on the screen
 
             Cursor = Cursors.Default; // normal cursor
