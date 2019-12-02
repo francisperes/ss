@@ -479,6 +479,7 @@ namespace SS_OpenCV
                         (data_ptr + x * nChannels + y * widthStep)[0] = 0;
                         (data_ptr + x * nChannels + y * widthStep)[1] = 0;
                         (data_ptr + x * nChannels + y * widthStep)[2] = 0;
+                        labels[x + y * widthStep] = 0;
                     }
                 }
             }
