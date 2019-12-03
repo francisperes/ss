@@ -2800,18 +2800,6 @@ namespace SS_OpenCV
             max_x = new int[label_count];
             min_x = new int[label_count];
 
-            for (int i = 0; i < label_count; i++)
-                max_y[i] = 0;
-
-            for (int i = 0; i < label_count; i++)
-                min_y[i] = 0;
-
-            for (int i = 0; i < label_count; i++)
-                max_x[i] = 0;
-
-            for (int i = 0; i < label_count; i++)
-                min_x[i] = 0;
-
             for (int y = 1; y < height - 1; y++)
             {
                 for (int x = 1; x < width - 1; x++)
