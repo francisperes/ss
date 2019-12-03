@@ -410,6 +410,7 @@ namespace SS_OpenCV
             // É capaz de ser uma boa ideia fazer um Fecho antes de processar
             // a imagem que vamos binarizar a vermelho (5x5 é capaz de chegar)
             ConvertToBR_HSV(img);
+            ImgClosing(img);
             int[] labels = GetConnectedComponents_BR(img);
             ConvertHSVToRGB(img);
 
@@ -425,7 +426,6 @@ namespace SS_OpenCV
             RemoveNoiseTags(labels, height, width, widthStep, nChannels, data_ptr);
             SetRandomColoursToEachTag(labels, height, width, widthStep, nChannels, data_ptr);
 
-            ImgClosing(img);
             
             int label_count = labels.Count();
 
@@ -2886,21 +2886,31 @@ namespace SS_OpenCV
                                 out List<string[]> warningSign, out List<string[]> prohibitionSign, int level)
         {
             // New architecture
-            //ConvertRGBToHSV(img);
-            // É capaz de ser uma boa ideia fazer um Fecho antes de processar
-            // a imagem que vamos binarizar a vermelho (5x5 é capaz de chegar)
-            //ConvertToBR_HSV(img);
-            //GetConnectedComponents_BR(img);
-            //ConvertHSVToRGB(img);
-            // You can test BR_HSV with this ^^
+            /*
+            ConvertRGBToHSV(img);
+            ConvertToBR_HSV(img);
+            ImgClosing(img);
+            int[] labels = GetConnectedComponents_BR(img);
+            ConvertHSVToRGB(img);
 
-            //ConvertToBR_HSV(hsv_image);
-            //ConvertToBW(imgCopy);
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+            int nChannels = mipl.nChannels;
+            int height = img.Height;
+            int width = img.Width;
+            int padding = mipl.widthStep - mipl.nChannels * mipl.width;
+            int widthStep = mipl.widthStep;
+                        
+            // Set Random Colours to each label
+            RemoveNoiseTags(labels, height, width, widthStep, nChannels, data_ptr);
+            SetRandomColoursToEachTag(labels, height, width, widthStep, nChannels, data_ptr);
+            
+            int label_count = labels.Count();
 
-            //GetConnectedComponents_BR(hsv_image);
-            //GetConnectedComponents_BW(imgCopy);
-
-            // DetectSigns();
+            List<int[]> minMaxValues = GetReleventAreas(labels, height, width, widthStep);
+            DrawReleventAreas(minMaxValues, label_count, nChannels, widthStep, data_ptr);
+            return;
+             */
 
             limitSign = new List<string[]>();
             warningSign = new List<string[]>();
