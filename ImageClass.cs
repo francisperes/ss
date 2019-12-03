@@ -420,142 +420,19 @@ namespace SS_OpenCV
             int width = img.Width;
             int padding = mipl.widthStep - mipl.nChannels * mipl.width;
             int widthStep = mipl.widthStep;
-            var colours = new Dictionary<int, int[]>();
-            Random rand = new Random();
-            
+                        
             // Set Random Colours to each label
-            for (int y = 1; y < height - 1; y++)
-            {
-                for (int x = 1; x < width - 1; x++)
-                {
-                    int label = labels[x + y * widthStep];
-                    if (label != 0)
-                    {
-                        if (colours.ContainsKey(label))
-                        {
-                            (data_ptr + x * nChannels + y * widthStep)[0] = (byte)colours[label][0];
-                            (data_ptr + x * nChannels + y * widthStep)[1] = (byte)colours[label][1];
-                            (data_ptr + x * nChannels + y * widthStep)[2] = (byte)colours[label][2];
-                        }
-                        else
-                        {
-                            int n1 = rand.Next(0, 255);
-                            int n2 = rand.Next(0, 255);
-                            int n3 = rand.Next(0, 255);
-                            int[] new_colour = {n1, n2, n3};
+            RemoveNoiseTags(labels, height, width, widthStep, nChannels, data_ptr);
+            SetRandomColoursToEachTag(labels, height, width, widthStep, nChannels, data_ptr);
 
-                            // Apply colours
-                            (data_ptr + x * nChannels + y * widthStep)[0] = (byte)n1;
-                            (data_ptr + x * nChannels + y * widthStep)[1] = (byte)n2;
-                            (data_ptr + x * nChannels + y * widthStep)[2] = (byte)n3;
-
-                            colours.Add(label, new_colour);
-                        }
-                    }
-                }
-            }
-
-            List<int> desired_labels = new List<int>();
-            var query = from label in labels
-                        group label by label into values
-                        select new { values, count = values.Count() };
-            
-            foreach (var item in query)
-            {
-                if (item.count > 2000)
-                {
-                    desired_labels.Add(item.values.Key);
-                }
-            }
-
-            // Remove every label that isn't desired
-            for (int y = 1; y < height - 1; y++)
-            {
-                for (int x = 1; x < width - 1; x++)
-                {
-                    int label = labels[x + y * widthStep];
-                    if (!desired_labels.Contains(label))
-                    {
-                        (data_ptr + x * nChannels + y * widthStep)[0] = 0;
-                        (data_ptr + x * nChannels + y * widthStep)[1] = 0;
-                        (data_ptr + x * nChannels + y * widthStep)[2] = 0;
-                        labels[x + y * widthStep] = 0;
-                    }
-                }
-            }
-            
             ImgClosing(img);
-
-            //go through each label, gets y max goes through until it gets x min and then x max and then y min 
-
-            /*       max_y
-             * min_x       max_x
-             *       min_y
-             */
+            
             int label_count = labels.Count();
-            int [] max_y, min_y, max_x, min_x;
 
-            max_y = new int[label_count];
-            min_y = new int[label_count];
-            max_x = new int[label_count];
-            min_x = new int[label_count];
-
-            for (int i = 0; i < label_count; i++)
-                max_y[i] = 0;
-
-            for (int i = 0; i < label_count; i++)
-                min_y[i] = 0;
-
-            for (int i = 0; i < label_count; i++)
-                max_x[i] = 0;
-
-            for (int i = 0; i < label_count; i++)
-                min_x[i] = 0;
-
-            for (int y = 1; y < height - 1; y++)
-            {
-                for (int x = 1; x < width - 1; x++)
-                {
-                    int label = labels[x + y * widthStep];
-
-                    if (label != 0 && label < label_count) {
-                        if (max_y[label] == 0) 
-                            max_y[label] = y;
-                        if (min_y[label] == 0 || y > min_y[label])
-                            min_y[label] = y;
-                        if (max_x[label] == 0 || x > max_x[label])
-                            max_x[label] = x;
-                        if (min_x[label] == 0 || x < min_x[label])
-                            min_x[label] = x;
-                    }
-                }
-            }
-
-            for (int i = 0; i < label_count; i++)
-            {
-                //draw top red line 
-                int y = max_y[i];
-                int x;
-                for (x = min_x[i]; x < max_x[i]; x++)
-                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
-
-                //draw bottom red line
-                y = min_y[i];
-                for (x = min_x[i]; x < max_x[i]; x++)
-                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
-
-                //draw left red line
-                x = min_x[i];
-                for(y = max_y[i]; y < min_y[i]; y++)
-                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
-
-                //draw right red line
-                x = max_x[i];
-                for (y = max_y[i]; y < min_y[i]; y++)
-                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
-            }
-
+            List<int[]> minMaxValues = GetReleventAreas(labels, height, width, widthStep);
+            DrawReleventAreas(minMaxValues, label_count, nChannels, widthStep, data_ptr);
             return;
+
             // The real Rotation function
             /*MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
@@ -2834,6 +2711,159 @@ namespace SS_OpenCV
             
             Dilation(image, maskType);
             Erosion (image, maskType);
+        }
+
+        public unsafe static void SetRandomColoursToEachTag(int[] labels, int height, int width, int widthStep, int nChannels, byte* data_ptr)
+        {
+            var colours = new Dictionary<int, int[]>();
+            Random rand = new Random();
+
+            for (int y = 1; y < height - 1; y++)
+            {
+                for (int x = 1; x < width - 1; x++)
+                {
+                    int label = labels[x + y * widthStep];
+                    if (label != 0)
+                    {
+                        if (colours.ContainsKey(label))
+                        {
+                            (data_ptr + x * nChannels + y * widthStep)[0] = (byte)colours[label][0];
+                            (data_ptr + x * nChannels + y * widthStep)[1] = (byte)colours[label][1];
+                            (data_ptr + x * nChannels + y * widthStep)[2] = (byte)colours[label][2];
+                        }
+                        else
+                        {
+                            int n1 = rand.Next(0, 255);
+                            int n2 = rand.Next(0, 255);
+                            int n3 = rand.Next(0, 255);
+                            int[] new_colour = {n1, n2, n3};
+
+                            // Apply colours
+                            (data_ptr + x * nChannels + y * widthStep)[0] = (byte)n1;
+                            (data_ptr + x * nChannels + y * widthStep)[1] = (byte)n2;
+                            (data_ptr + x * nChannels + y * widthStep)[2] = (byte)n3;
+
+                            colours.Add(label, new_colour);
+                        }
+                    }
+                }
+            }
+        }
+
+        public unsafe static void RemoveNoiseTags(int[] labels, int height, int width, int widthStep, int nChannels, byte* data_ptr)
+        {
+            List<int> desired_labels = new List<int>();
+            var query = from label in labels
+                        group label by label into values
+                        select new { values, count = values.Count() };
+            
+            foreach (var item in query)
+            {
+                if (item.count > 2000)
+                {
+                    desired_labels.Add(item.values.Key);
+                }
+            }
+
+            // Remove every label that isn't desired
+            for (int y = 1; y < height - 1; y++)
+            {
+                for (int x = 1; x < width - 1; x++)
+                {
+                    int label = labels[x + y * widthStep];
+                    if (!desired_labels.Contains(label))
+                    {
+                        (data_ptr + x * nChannels + y * widthStep)[0] = 0;
+                        (data_ptr + x * nChannels + y * widthStep)[1] = 0;
+                        (data_ptr + x * nChannels + y * widthStep)[2] = 0;
+                        labels[x + y * widthStep] = 0;
+                    }
+                }
+            }
+        }
+
+        public unsafe static List<int[]> GetReleventAreas(int[] labels, int height, int width, int widthStep)
+        {
+            //go through each label, gets y max goes through until it gets x min and then x max and then y min 
+
+            /*       max_y
+             * min_x       max_x
+             *       min_y
+             */
+
+            int label_count = labels.Count();
+            int [] max_y, min_y, max_x, min_x;
+            List<int[]> res = new List<int[]>();
+
+            max_y = new int[label_count];
+            min_y = new int[label_count];
+            max_x = new int[label_count];
+            min_x = new int[label_count];
+
+            for (int i = 0; i < label_count; i++)
+                max_y[i] = 0;
+
+            for (int i = 0; i < label_count; i++)
+                min_y[i] = 0;
+
+            for (int i = 0; i < label_count; i++)
+                max_x[i] = 0;
+
+            for (int i = 0; i < label_count; i++)
+                min_x[i] = 0;
+
+            for (int y = 1; y < height - 1; y++)
+            {
+                for (int x = 1; x < width - 1; x++)
+                {
+                    int label = labels[x + y * widthStep];
+
+                    if (label != 0 && label < label_count) {
+                        if (max_y[label] == 0) 
+                            max_y[label] = y;
+                        if (min_y[label] == 0 || y > min_y[label])
+                            min_y[label] = y;
+                        if (max_x[label] == 0 || x > max_x[label])
+                            max_x[label] = x;
+                        if (min_x[label] == 0 || x < min_x[label])
+                            min_x[label] = x;
+                    }
+                }
+            }
+
+            res.Add(max_y);
+            res.Add(min_y);
+            res.Add(max_x);
+            res.Add(min_x);
+
+            return res;
+        }
+
+        public unsafe static void DrawReleventAreas(List<int[]> min_max_values, int label_count, int nChannels, int widthStep, byte* data_ptr)
+        {
+            for (int i = 0; i < label_count; i++)
+            {
+                //draw top red line 
+                int y = min_max_values[0][i];
+                int x;
+                for (x = min_max_values[3][i]; x < min_max_values[2][i]; x++)
+                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
+
+                //draw bottom red line
+                y = min_max_values[1][i];
+                for (x = min_max_values[3][i]; x < min_max_values[2][i]; x++)
+                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
+
+                //draw left red line
+                x = min_max_values[3][i];
+                for(y = min_max_values[0][i]; y < min_max_values[1][i]; y++)
+                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
+
+                //draw right red line
+                x = min_max_values[2][i];
+                for (y = min_max_values[0][i]; y < min_max_values[1][i]; y++)
+                    (data_ptr + x * nChannels + y * widthStep)[2] = 255;
+            }
         }
 
         public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
