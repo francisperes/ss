@@ -404,103 +404,45 @@ namespace SS_OpenCV
             }
         }
 
-        public unsafe static Image<Bgr, byte> Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, double degrees)
+        public unsafe static void Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, double degrees)
         {
-            ConvertRGBToHSV(img);
-            // É capaz de ser uma boa ideia fazer um Fecho antes de processar
-            // a imagem que vamos binarizar a vermelho (5x5 é capaz de chegar)
-            ConvertToBR_HSV(img);
-            ImgClosing(img, 11);
-            int[] labels = GetConnectedComponents_BR(img);
-            ConvertHSVToRGB(img);
-
+            // The real Rotation function
             MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+            byte* data_ptr_clone = (byte*)imgCopy.MIplImage.imageData.ToPointer();
+
+            img.SetZero();
+
             int nChannels = mipl.nChannels;
             int height = img.Height;
             int width = img.Width;
             int padding = mipl.widthStep - mipl.nChannels * mipl.width;
             int widthStep = mipl.widthStep;
 
-            // Set Random Colours to each label
-            RemoveNoiseTags(labels, 2000, height, width, widthStep, nChannels, data_ptr);
-            SetRandomColoursToEachTag(labels, height, width, widthStep, nChannels, data_ptr);
+            double rot_cos = Math.Cos(degrees);
+            double rot_sin = Math.Sin(degrees);
 
+            int x_dest, y_dest;
+            int x_orig, y_orig;
 
-            int label_count = labels.Count();
+            double width_division = width / 2.0;
+            double height_division = height / 2.0;
 
-            List<int[]> minMaxValues = GetReleventAreas(labels, height, width, widthStep);
-            DrawReleventAreas(minMaxValues, label_count, nChannels, widthStep, data_ptr);
-
-            var SignImages = new List<Image<Bgr, byte>>();
-            for (int i = 0; i < label_count; i++)
+            for (y_dest = 0; y_dest < height; y_dest++)
             {
-                if (minMaxValues[2][i] != 0)
+                for (x_dest = 0; x_dest < width; x_dest++)
                 {
-                    // Do this for numbers
-                    imgCopy.ROI = new System.Drawing.Rectangle(minMaxValues[3][i] + 1, minMaxValues[0][i] + 1, (minMaxValues[2][i] - minMaxValues[3][i]) - 1, (minMaxValues[1][i] - minMaxValues[0][i]) - 1);
-                    Image<Bgr, byte> sub_img = imgCopy.Copy();
-                    imgCopy.ROI = img.ROI;
+                    x_orig = (int)Math.Round((x_dest - width_division) * rot_cos - (height_division - y_dest) * rot_sin + width_division);
+                    y_orig = (int)Math.Round(height_division - (x_dest - width_division) * rot_sin - (height_division - y_dest) * rot_cos);
 
-                    ConvertToBW(sub_img, 120);
-                    Negative(sub_img);
-                    SignImages.Add(sub_img);
+                    if (x_orig >= 0 && x_orig < width && y_orig >= 0 && y_orig < height)
+                    {
+                        (data_ptr + nChannels * x_dest + y_dest * widthStep)[0] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[0];
+                        (data_ptr + nChannels * x_dest + y_dest * widthStep)[1] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[1];
+                        (data_ptr + nChannels * x_dest + y_dest * widthStep)[2] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[2];
+                    }
                 }
             }
-
-            var num_images = GetAreaInsideSigns(SignImages);
-            var DefaultNumImages = LoadNumbersImages();
-            for (int i = 1; i < num_images.Count; i++)
-            {
-                CompareNumber(num_images.ElementAt(i), DefaultNumImages);
-            }
-
-            //return img;
-            //return DefaultNumImages[1];
-            return num_images.ElementAt(3); //level 1 image
-            //return sub_img;
-            //return num_images.ElementAt(6); //level 4 image
-            //return img;
-
-
-
-        // The real Rotation function
-        /*MIplImage mipl = img.MIplImage;
-        byte* data_ptr = (byte*)mipl.imageData.ToPointer();
-        byte* data_ptr_clone = (byte*)imgCopy.MIplImage.imageData.ToPointer();
-
-        img.SetZero();
-
-        int nChannels = mipl.nChannels;
-        int height = img.Height;
-        int width = img.Width;
-        int padding = mipl.widthStep - mipl.nChannels * mipl.width;
-        int widthStep = mipl.widthStep;
-
-        double rot_cos = Math.Cos(degrees);
-        double rot_sin = Math.Sin(degrees);
-
-        int x_dest, y_dest;
-        int x_orig, y_orig;
-
-        double width_division = width / 2.0;
-        double height_division = height / 2.0;
-
-        for (y_dest = 0; y_dest < height; y_dest++)
-        {
-            for (x_dest = 0; x_dest < width; x_dest++)
-            {
-                x_orig = (int)Math.Round((x_dest - width_division) * rot_cos - (height_division - y_dest) * rot_sin + width_division);
-                y_orig = (int)Math.Round(height_division - (x_dest - width_division) * rot_sin - (height_division - y_dest) * rot_cos);
-
-                if (x_orig >= 0 && x_orig < width && y_orig >= 0 && y_orig < height)
-                {
-                    (data_ptr + nChannels * x_dest + y_dest * widthStep)[0] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[0];
-                    (data_ptr + nChannels * x_dest + y_dest * widthStep)[1] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[1];
-                    (data_ptr + nChannels * x_dest + y_dest * widthStep)[2] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[2];
-                }
-            }
-        }*/
         }
 
         public unsafe static List<Image<Bgr, byte>> GetAreaInsideSigns(List<Image<Bgr, byte>> SignImages){
@@ -3015,7 +2957,7 @@ namespace SS_OpenCV
 
         public unsafe static int CompareNumber(Image<Bgr, byte> number, List<Image<Bgr, byte>> numbersList)
         {
-            int res = 99999999;
+            int res = int.MaxValue;
             int min_index = -1;
             for (int i = 0; i < 10; i++)
             {
@@ -3075,14 +3017,19 @@ namespace SS_OpenCV
             prohibitionSign = new List<string[]>();
         }
 
-        public static Image<Bgr, byte> Signs(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, out List<string[]> limitSign, 
+        public unsafe static Image<Bgr, byte> Signs(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, out List<string[]> limitSign, 
                                 out List<string[]> warningSign, out List<string[]> prohibitionSign, int level)
         {
-            // New architecture
-            /*
+
+            limitSign = new List<string[]>();
+            warningSign = new List<string[]>();
+            prohibitionSign = new List<string[]>();
+
             ConvertRGBToHSV(img);
+            // É capaz de ser uma boa ideia fazer um Fecho antes de processar
+            // a imagem que vamos binarizar a vermelho (5x5 é capaz de chegar)
             ConvertToBR_HSV(img);
-            ImgClosing(img);
+            ImgClosing(img, 11);
             int[] labels = GetConnectedComponents_BR(img);
             ConvertHSVToRGB(img);
 
@@ -3093,31 +3040,52 @@ namespace SS_OpenCV
             int width = img.Width;
             int padding = mipl.widthStep - mipl.nChannels * mipl.width;
             int widthStep = mipl.widthStep;
-                        
+
             // Set Random Colours to each label
-            RemoveNoiseTags(labels, height, width, widthStep, nChannels, data_ptr);
+            RemoveNoiseTags(labels, 2000, height, width, widthStep, nChannels, data_ptr);
             SetRandomColoursToEachTag(labels, height, width, widthStep, nChannels, data_ptr);
-            
+
+
             int label_count = labels.Count();
 
             List<int[]> minMaxValues = GetReleventAreas(labels, height, width, widthStep);
-            DrawReleventAreas(minMaxValues, label_count, nChannels, widthStep, data_ptr);
-            return;
-             */
+            byte* data_ptr_clone = (byte*)imgCopy.MIplImage.imageData.ToPointer();
+            DrawReleventAreas(minMaxValues, label_count, nChannels, widthStep, data_ptr_clone);
 
-            limitSign = new List<string[]>();
-            warningSign = new List<string[]>();
-            prohibitionSign = new List<string[]>();
+            var SignImages = new List<Image<Bgr, byte>>();
+            for (int i = 0; i < label_count; i++)
+            {
+                if (minMaxValues[2][i] != 0)
+                {
+                    // Do this for numbers
+                    imgCopy.ROI = new System.Drawing.Rectangle(minMaxValues[3][i] + 1, minMaxValues[0][i] + 1, (minMaxValues[2][i] - minMaxValues[3][i]) - 1, (minMaxValues[1][i] - minMaxValues[0][i]) - 1);
+                    Image<Bgr, byte> sub_img = imgCopy.Copy();
+                    imgCopy.ROI = img.ROI;
 
-            Image<Bgr, byte> otsu_red = img.Clone();
-            Image<Bgr, byte> otsu = img.Clone();
+                    ConvertToBW(sub_img, 120);
+                    Negative(sub_img);
+                    SignImages.Add(sub_img);
+                }
+            }
 
-            ConvertToRed_Otsu(otsu_red);
-            ConvertToBW_Otsu(otsu);
+            var num_images = GetAreaInsideSigns(SignImages);
+            var DefaultNumImages = LoadNumbersImages();
+            for (int i = 1; i < num_images.Count; i++)
+            {
+                CompareNumber(num_images.ElementAt(i), DefaultNumImages);
+            }
 
-            DetectSigns(otsu, otsu_red, out limitSign, out warningSign, out prohibitionSign);
+            //return img;
+            //return DefaultNumImages[1];
+            //return num_images.ElementAt(3); //level 1 image
+            //return sub_img;
+            //return num_images.ElementAt(6); //level 4 image
+            return imgCopy;
 
-            return img;
+
+            //DetectSigns(otsu, otsu_red, out limitSign, out warningSign, out prohibitionSign);
+
+            //return img;
         }
     }
 }

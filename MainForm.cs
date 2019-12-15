@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using Emgu.CV;
 using Emgu.CV.Structure;
@@ -288,9 +289,9 @@ namespace SS_OpenCV
 
             Image<Bgr, Byte> imgCopy = img.Clone();
 
-            ImageViewer.Image = ImageClass.Rotation(img, imgCopy, rad_degrees).Bitmap;
+            ImageClass.Rotation(img, imgCopy, rad_degrees);
 
-            //ImageViewer.Image = imgCopy.Bitmap;
+            ImageViewer.Image = imgCopy.Bitmap;
             ImageViewer.Refresh(); // refresh image on the screen
 
             Cursor = Cursors.Default; // normal cursor
@@ -300,6 +301,9 @@ namespace SS_OpenCV
         //create mouse variables
         int mouseX, mouseY;
         bool mouseFlag = false;
+        private List<string[]> prohibitionSign;
+        private List<string[]> warningSign;
+        private List<string[]> limitSign;
 
         private void ImageViewer_MouseClick(object sender, MouseEventArgs e)
         {
@@ -527,6 +531,27 @@ namespace SS_OpenCV
             ImageViewer.Refresh(); // refresh image on the screen
 
             Cursor = Cursors.Default; // normal cursor
+        }
+
+        private void DetectSignsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (img == null) // verify if the image is already opened
+                return;
+            Cursor = Cursors.WaitCursor; // clock cursor 
+
+            //copy Undo Image
+            imgUndo = img.Copy();
+
+            Image<Bgr, Byte> imgCopy = img.Clone();
+
+            int level = 1;
+            ImageViewer.Image = ImageClass.Signs(img, imgCopy, out limitSign, out warningSign, out prohibitionSign, level).Bitmap;
+
+
+            ImageViewer.Refresh(); // refresh image on the screen
+
+            Cursor = Cursors.Default; // normal cursor
+
         }
 
         private void ZoomToolStripMenuItem_Click(object sender, EventArgs e)
