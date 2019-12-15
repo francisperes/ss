@@ -288,9 +288,9 @@ namespace SS_OpenCV
 
             Image<Bgr, Byte> imgCopy = img.Clone();
 
-            ImageClass.Rotation(img, imgCopy, rad_degrees);
+            ImageViewer.Image = ImageClass.Rotation(img, imgCopy, rad_degrees).Bitmap;
 
-            ImageViewer.Image = img.Bitmap;
+            //ImageViewer.Image = imgCopy.Bitmap;
             ImageViewer.Refresh(); // refresh image on the screen
 
             Cursor = Cursors.Default; // normal cursor

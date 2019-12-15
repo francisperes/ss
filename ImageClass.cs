@@ -17,8 +17,6 @@ namespace SS_OpenCV
         /// <param name="img">Image</param>
         public unsafe static void Negative(Image<Bgr, byte> img)
         {
-            //Image<Bgr, byte> num1 = new Image<Bgr, byte>("digitos\\1.png");
-            /*
             int x, y;
             MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
@@ -46,9 +44,6 @@ namespace SS_OpenCV
                 }
                 data_ptr += padding;
             }
-
-            ConvertToBW_Otsu(img);
-            */
         }
 
         /// <summary>
@@ -408,7 +403,7 @@ namespace SS_OpenCV
             }
         }
 
-        public unsafe static void Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, double degrees)
+        public unsafe static Image<Bgr, byte> Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, double degrees)
         {
             ConvertRGBToHSV(img);
             // É capaz de ser uma boa ideia fazer um Fecho antes de processar
@@ -425,72 +420,122 @@ namespace SS_OpenCV
             int width = img.Width;
             int padding = mipl.widthStep - mipl.nChannels * mipl.width;
             int widthStep = mipl.widthStep;
-                        
+
             // Set Random Colours to each label
-            RemoveNoiseTags(labels, height, width, widthStep, nChannels, data_ptr);
+            RemoveNoiseTags(labels, 2000, height, width, widthStep, nChannels, data_ptr);
             SetRandomColoursToEachTag(labels, height, width, widthStep, nChannels, data_ptr);
 
-            
+
             int label_count = labels.Count();
 
             List<int[]> minMaxValues = GetReleventAreas(labels, height, width, widthStep);
             DrawReleventAreas(minMaxValues, label_count, nChannels, widthStep, data_ptr);
 
-            var Images = new List<Image<Bgr, byte>>();
+            var SignImages = new List<Image<Bgr, byte>>();
             for (int i = 0; i < label_count; i++)
             {
                 if (minMaxValues[2][i] != 0)
                 {
                     // Do this for numbers
-                    Image<Bgr, byte> sub_img = imgCopy.Clone();
-                    sub_img.ROI = new System.Drawing.Rectangle(minMaxValues[3][i] + 1, minMaxValues[0][i] + 1, (minMaxValues[2][i] - minMaxValues[3][i]) - 1, (minMaxValues[1][i] - minMaxValues[0][i]) - 1);
+                    imgCopy.ROI = new System.Drawing.Rectangle(minMaxValues[3][i] + 1, minMaxValues[0][i] + 1, (minMaxValues[2][i] - minMaxValues[3][i]) - 1, (minMaxValues[1][i] - minMaxValues[0][i]) - 1);
+                    Image<Bgr, byte> sub_img = imgCopy.Copy();
+                    imgCopy.ROI = img.ROI;
 
-                    Negative(sub_img);
                     ConvertToBW(sub_img, 220);
-                    Images.Add(sub_img);
+                    Negative(sub_img);
+                    SignImages.Add(sub_img);
                 }
             }
 
-            img.ROI = Images.ElementAt(0).ROI;
-            return;
 
-            // The real Rotation function
-            /*MIplImage mipl = img.MIplImage;
-            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
-            byte* data_ptr_clone = (byte*)imgCopy.MIplImage.imageData.ToPointer();
+            var num_images = GetAreaInsideSigns(SignImages);
 
-            img.SetZero();
+            return num_images.ElementAt(1); //level 1 image
+            //return sub_img;
+            return num_images.ElementAt(6); //level 4 image
+            return img;
 
-            int nChannels = mipl.nChannels;
-            int height = img.Height;
-            int width = img.Width;
-            int padding = mipl.widthStep - mipl.nChannels * mipl.width;
-            int widthStep = mipl.widthStep;
 
-            double rot_cos = Math.Cos(degrees);
-            double rot_sin = Math.Sin(degrees);
 
-            int x_dest, y_dest;
-            int x_orig, y_orig;
+        // The real Rotation function
+        /*MIplImage mipl = img.MIplImage;
+        byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+        byte* data_ptr_clone = (byte*)imgCopy.MIplImage.imageData.ToPointer();
 
-            double width_division = width / 2.0;
-            double height_division = height / 2.0;
+        img.SetZero();
 
-            for (y_dest = 0; y_dest < height; y_dest++)
+        int nChannels = mipl.nChannels;
+        int height = img.Height;
+        int width = img.Width;
+        int padding = mipl.widthStep - mipl.nChannels * mipl.width;
+        int widthStep = mipl.widthStep;
+
+        double rot_cos = Math.Cos(degrees);
+        double rot_sin = Math.Sin(degrees);
+
+        int x_dest, y_dest;
+        int x_orig, y_orig;
+
+        double width_division = width / 2.0;
+        double height_division = height / 2.0;
+
+        for (y_dest = 0; y_dest < height; y_dest++)
+        {
+            for (x_dest = 0; x_dest < width; x_dest++)
             {
-                for (x_dest = 0; x_dest < width; x_dest++)
-                {
-                    x_orig = (int)Math.Round((x_dest - width_division) * rot_cos - (height_division - y_dest) * rot_sin + width_division);
-                    y_orig = (int)Math.Round(height_division - (x_dest - width_division) * rot_sin - (height_division - y_dest) * rot_cos);
+                x_orig = (int)Math.Round((x_dest - width_division) * rot_cos - (height_division - y_dest) * rot_sin + width_division);
+                y_orig = (int)Math.Round(height_division - (x_dest - width_division) * rot_sin - (height_division - y_dest) * rot_cos);
 
-                    if (x_orig >= 0 && x_orig < width && y_orig >= 0 && y_orig < height)
+                if (x_orig >= 0 && x_orig < width && y_orig >= 0 && y_orig < height)
+                {
+                    (data_ptr + nChannels * x_dest + y_dest * widthStep)[0] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[0];
+                    (data_ptr + nChannels * x_dest + y_dest * widthStep)[1] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[1];
+                    (data_ptr + nChannels * x_dest + y_dest * widthStep)[2] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[2];
+                }
+            }
+        }*/
+        }
+
+        public unsafe static List<Image<Bgr, byte>> GetAreaInsideSigns(List<Image<Bgr, byte>> SignImages){
+            var num_images = new List<Image<Bgr, byte>>();
+
+            foreach (var sub_img in SignImages)
+            {
+                ConvertRGBToHSV(sub_img);
+                ConvertToB_HSV(sub_img);
+                ImgClosing(sub_img);
+                int[] labels_sign_numbers = GetConnectedComponents_BR(sub_img);
+                ConvertHSVToRGB(sub_img);
+
+                MIplImage sub_mipl = sub_img.MIplImage;
+                byte* sub_data_ptr = (byte*)sub_mipl.imageData.ToPointer();
+                int sub_height = sub_img.Height;
+                int sub_width = sub_img.Width;
+                int nChannels = sub_mipl.nChannels;
+                int sub_widthStep = sub_mipl.widthStep;
+
+                RemoveNoiseTags(labels_sign_numbers, 50, sub_height, sub_width, sub_widthStep, nChannels, sub_data_ptr);
+
+                int label_count = labels_sign_numbers.Count();
+
+                List<int[]> sub_minMaxValues = GetReleventAreas(labels_sign_numbers, sub_height, sub_width, sub_widthStep);
+                //DrawReleventAreas(sub_minMaxValues, label_count, nChannels, widthStep, sub_data_ptr);
+
+                for (int i = 0; i < label_count; i++)
+                {
+                    if (sub_minMaxValues[2][i] != 0)
                     {
-                        (data_ptr + nChannels * x_dest + y_dest * widthStep)[0] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[0];
-                        (data_ptr + nChannels * x_dest + y_dest * widthStep)[1] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[1];
-                        (data_ptr + nChannels * x_dest + y_dest * widthStep)[2] = (data_ptr_clone + nChannels * x_orig + y_orig * widthStep)[2];
+                        System.Drawing.Rectangle prev_ROI = sub_img.ROI; 
+                        sub_img.ROI = new System.Drawing.Rectangle(sub_minMaxValues[3][i] + 1, sub_minMaxValues[0][i] + 1, (sub_minMaxValues[2][i] - sub_minMaxValues[3][i]) - 1,
+                                        (sub_minMaxValues[1][i] - sub_minMaxValues[0][i]) - 1);
+                        Image<Bgr, byte> num_img = sub_img.Copy(); 
+                        sub_img.ROI = prev_ROI;
+
+                        num_images.Add(num_img);
                     }
                 }
-            }*/
+            }
+            return num_images;
         }
 
         public unsafe static void Scale_point_xy(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, float scale_factor, int centerx, int centery)
@@ -2460,6 +2505,38 @@ namespace SS_OpenCV
                 }
             } 
         }
+        public unsafe static void ConvertToB_HSV (Image<Bgr, byte> img)
+        {
+            int x, y;
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+
+            int nChannels = mipl.nChannels;
+            int height = img.Height;
+            int width = img.Width;
+            int widthStep = mipl.widthStep;
+
+            for (y = 0; y < height; y++)
+            {
+                for (x = 0; x < width; x++)
+                {
+                    if (((data_ptr + x * nChannels + y * widthStep)[0] <= 10 || (data_ptr + x * nChannels + y * widthStep)[0] >= 160) &&
+                        ((data_ptr + x * nChannels + y * widthStep)[1] <= 10 && (data_ptr + x * nChannels + y * widthStep)[2] >= 80))
+                    {
+                        //(data_ptr + x * nChannels + y * widthStep)[0] = 255;
+                        //(data_ptr + x * nChannels + y * widthStep)[1] = 255;
+                        //(data_ptr + x * nChannels + y * widthStep)[2] = 255;
+                        // Preserve colour
+                    }
+                    else
+                    {
+                        (data_ptr + x * nChannels + y * widthStep)[0] = 0;
+                        (data_ptr + x * nChannels + y * widthStep)[1] = 0;
+                        (data_ptr + x * nChannels + y * widthStep)[2] = 0;
+                    }
+                }
+            }
+        }
 
         //used in ConvertToRed_Otsu, TODO
         public unsafe static int[] Histogram_Red(Image<Bgr, byte> img)
@@ -2771,7 +2848,7 @@ namespace SS_OpenCV
             }
         }
 
-        public unsafe static void RemoveNoiseTags(int[] labels, int height, int width, int widthStep, int nChannels, byte* data_ptr)
+        public unsafe static void RemoveNoiseTags(int[] labels, int min_pixel, int height, int width, int widthStep, int nChannels, byte* data_ptr)
         {
             List<int> desired_labels = new List<int>();
             var query = from label in labels
@@ -2780,7 +2857,7 @@ namespace SS_OpenCV
             
             foreach (var item in query)
             {
-                if (item.count > 2000)
+                if (item.count > min_pixel)
                 {
                     desired_labels.Add(item.values.Key);
                 }
