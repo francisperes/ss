@@ -17,7 +17,8 @@ namespace SS_OpenCV
         /// <param name="img">Image</param>
         public unsafe static void Negative(Image<Bgr, byte> img)
         {
-
+            //Image<Bgr, byte> num1 = new Image<Bgr, byte>("digitos\\1.png");
+            /*
             int x, y;
             MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
@@ -45,6 +46,9 @@ namespace SS_OpenCV
                 }
                 data_ptr += padding;
             }
+
+            ConvertToBW_Otsu(img);
+            */
         }
 
         /// <summary>
@@ -431,6 +435,23 @@ namespace SS_OpenCV
 
             List<int[]> minMaxValues = GetReleventAreas(labels, height, width, widthStep);
             DrawReleventAreas(minMaxValues, label_count, nChannels, widthStep, data_ptr);
+
+            var Images = new List<Image<Bgr, byte>>();
+            for (int i = 0; i < label_count; i++)
+            {
+                if (minMaxValues[2][i] != 0)
+                {
+                    // Do this for numbers
+                    Image<Bgr, byte> sub_img = imgCopy.Clone();
+                    sub_img.ROI = new System.Drawing.Rectangle(minMaxValues[3][i] + 1, minMaxValues[0][i] + 1, (minMaxValues[2][i] - minMaxValues[3][i]) - 1, (minMaxValues[1][i] - minMaxValues[0][i]) - 1);
+
+                    Negative(sub_img);
+                    ConvertToBW(sub_img, 220);
+                    Images.Add(sub_img);
+                }
+            }
+
+            img.ROI = Images.ElementAt(0).ROI;
             return;
 
             // The real Rotation function
@@ -2863,6 +2884,8 @@ namespace SS_OpenCV
             // FindLimitSigns(whiteObjects, redObjects, out limitSign);
             // FindWarningSigns(whiteObjects, redObjects, out warningSign);
             // FindProhibitionSigns(whiteObjects, redObjects, out prohibitionSign);
+
+            Image<Bgr, byte> num1 = new Image<Bgr, byte>("dijitos\\1.png");
 
             // Return
             limitSign = new List<string[]>();
