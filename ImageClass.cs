@@ -386,43 +386,6 @@ namespace SS_OpenCV
 
         public unsafe static void Translation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, int trans_x, int trans_y)
         {
-            int x, y;
-            MIplImage mipl = img.MIplImage;
-            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
-            int nChannels = mipl.nChannels;
-            int height = img.Height;
-            int width = img.Width;
-            int padding = mipl.widthStep - mipl.nChannels * mipl.width;
-            int widthStep = mipl.widthStep;
-
-            Negative(img);
-            ConvertToBW_Otsu(img);
-
-            // Find Number Function
-            Image<Bgr, byte> num = new Image<Bgr, byte>("..\\..\\digitos\\1.png");
-            Negative(num);
-            ConvertToBW_Otsu(num);
-            byte* data_number_ptr = (byte*)num.MIplImage.imageData.ToPointer();
-
-            int difference = 0;
-            for(y = 0; y < height; y++)
-            {
-                for(x = 0; x < width; x++)
-                {
-                    difference += Math.Abs((data_ptr + x * nChannels + y * widthStep)[0] - (data_number_ptr + x * nChannels + y * widthStep)[0]);
-                }
-            }
-            difference = difference / 255; // Normalize difference for each pixel
-
-            if(difference < (width * height * 0.05))
-            {
-                System.Diagnostics.Debug.WriteLine("Number 1 Detected");
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine("Not number 1");
-            }
-            /*
             if (trans_x >= 0 && trans_y >= 0)
             {
                 TranslationXPositiveYPositive(img, imgCopy, trans_x, trans_y);
@@ -439,7 +402,6 @@ namespace SS_OpenCV
             {
                 TranslationXNegativeYNegative(img, imgCopy, trans_x, trans_y);
             }
-            */
         }
 
         public unsafe static Image<Bgr, byte> Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, double degrees)
@@ -448,7 +410,7 @@ namespace SS_OpenCV
             // É capaz de ser uma boa ideia fazer um Fecho antes de processar
             // a imagem que vamos binarizar a vermelho (5x5 é capaz de chegar)
             ConvertToBR_HSV(img);
-            ImgClosing(img);
+            ImgClosing(img, 11);
             int[] labels = GetConnectedComponents_BR(img);
             ConvertHSVToRGB(img);
 
@@ -480,19 +442,25 @@ namespace SS_OpenCV
                     Image<Bgr, byte> sub_img = imgCopy.Copy();
                     imgCopy.ROI = img.ROI;
 
-                    ConvertToBW(sub_img, 220);
+                    ConvertToBW(sub_img, 120);
                     Negative(sub_img);
                     SignImages.Add(sub_img);
                 }
             }
 
-
             var num_images = GetAreaInsideSigns(SignImages);
+            var DefaultNumImages = LoadNumbersImages();
+            for (int i = 1; i < num_images.Count; i++)
+            {
+                CompareNumber(num_images.ElementAt(i), DefaultNumImages);
+            }
 
-            return num_images.ElementAt(1); //level 1 image
+            //return img;
+            //return DefaultNumImages[1];
+            return num_images.ElementAt(3); //level 1 image
             //return sub_img;
-            return num_images.ElementAt(6); //level 4 image
-            return img;
+            //return num_images.ElementAt(6); //level 4 image
+            //return img;
 
 
 
@@ -542,7 +510,7 @@ namespace SS_OpenCV
             {
                 ConvertRGBToHSV(sub_img);
                 ConvertToB_HSV(sub_img);
-                ImgClosing(sub_img);
+                ImgClosing(sub_img,5);
                 int[] labels_sign_numbers = GetConnectedComponents_BR(sub_img);
                 ConvertHSVToRGB(sub_img);
 
@@ -553,7 +521,7 @@ namespace SS_OpenCV
                 int nChannels = sub_mipl.nChannels;
                 int sub_widthStep = sub_mipl.widthStep;
 
-                RemoveNoiseTags(labels_sign_numbers, 50, sub_height, sub_width, sub_widthStep, nChannels, sub_data_ptr);
+                RemoveNoiseTags(labels_sign_numbers, 800, sub_height, sub_width, sub_widthStep, nChannels, sub_data_ptr);
 
                 int label_count = labels_sign_numbers.Count();
 
@@ -2842,9 +2810,9 @@ namespace SS_OpenCV
             }
         }
 
-        public unsafe static void ImgClosing(Image<Bgr, byte> image)
+        public unsafe static void ImgClosing(Image<Bgr, byte> image, int mask_size)
         {
-            int maskType = 11; //can be set to any odd value >2 as long as proper care is taken not to try to read outside the image outlines
+            int maskType = mask_size; //can be set to any odd value >2 as long as proper care is taken not to try to read outside the image outlines
             
             Dilation(image, maskType);
             Erosion (image, maskType);
@@ -3005,18 +2973,6 @@ namespace SS_OpenCV
             Image<Bgr, byte> num7 = new Image<Bgr, byte>("..\\..\\digitos\\7.png");
             Image<Bgr, byte> num8 = new Image<Bgr, byte>("..\\..\\digitos\\8.png");
             Image<Bgr, byte> num9 = new Image<Bgr, byte>("..\\..\\digitos\\9.png");
-            
-            // Invert them
-            Negative(num0);
-            Negative(num1);
-            Negative(num2);
-            Negative(num3);
-            Negative(num4);
-            Negative(num5);
-            Negative(num6);
-            Negative(num7);
-            Negative(num8);
-            Negative(num9);
 
             // Make them binary
             ConvertToBW_Otsu(num0);
@@ -3029,6 +2985,18 @@ namespace SS_OpenCV
             ConvertToBW_Otsu(num7);
             ConvertToBW_Otsu(num8);
             ConvertToBW_Otsu(num9);
+            
+            // Invert them
+            Negative(num0);
+            Negative(num1);
+            Negative(num2);
+            Negative(num3);
+            Negative(num4);
+            Negative(num5);
+            Negative(num6);
+            Negative(num7);
+            Negative(num8);
+            Negative(num9);
 
             // Add to the list
             imageList.Add(num0);
@@ -3043,6 +3011,51 @@ namespace SS_OpenCV
             imageList.Add(num9);
 
             return imageList;
+        }
+
+        public unsafe static int CompareNumber(Image<Bgr, byte> number, List<Image<Bgr, byte>> numbersList)
+        {
+            int res = 99999999;
+            int min_index = -1;
+            for (int i = 0; i < 10; i++)
+            {
+                int x, y;
+                MIplImage mipl = number.MIplImage;
+                byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+                int nChannels = mipl.nChannels;
+                int height = number.Height;
+                int width = number.Width;
+                int padding = mipl.widthStep - mipl.nChannels * mipl.width;
+                int widthStep = mipl.widthStep;
+
+                var imageClone = numbersList[i].Clone();
+                imageClone = imageClone.Resize(number.Width, number.Height, Emgu.CV.CvEnum.INTER.CV_INTER_NN);
+                byte* data_number_ptr = (byte*)imageClone.MIplImage.imageData.ToPointer();
+
+                int difference = 0;
+                for(y = 0; y < height; y++)
+                {
+                    for(x = 0; x < width; x++)
+                    {
+                        difference += Math.Abs((data_ptr + x * nChannels + y * widthStep)[0] - (data_number_ptr + x * nChannels + y * widthStep)[0]);
+                    }
+                }
+                
+                difference = difference / 255;
+                if((difference < (width * height * 0.3)) && (difference < res))
+                {
+                    res = difference;
+                    min_index = i;
+                    //break;
+                }
+            }
+
+            if (min_index != -1)
+            {
+                System.Diagnostics.Debug.WriteLine("Number " + min_index.ToString() + " Detected");
+                System.Diagnostics.Debug.WriteLine(res.ToString());
+            }
+            return res;
         }
 
         public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
