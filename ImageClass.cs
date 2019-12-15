@@ -445,48 +445,6 @@ namespace SS_OpenCV
             }
         }
 
-        public unsafe static List<Image<Bgr, byte>> GetAreaInsideSigns(List<Image<Bgr, byte>> SignImages){
-            var num_images = new List<Image<Bgr, byte>>();
-
-            foreach (var sub_img in SignImages)
-            {
-                ConvertRGBToHSV(sub_img);
-                ConvertToB_HSV(sub_img);
-                ImgClosing(sub_img,5);
-                int[] labels_sign_numbers = GetConnectedComponents_BR(sub_img);
-                ConvertHSVToRGB(sub_img);
-
-                MIplImage sub_mipl = sub_img.MIplImage;
-                byte* sub_data_ptr = (byte*)sub_mipl.imageData.ToPointer();
-                int sub_height = sub_img.Height;
-                int sub_width = sub_img.Width;
-                int nChannels = sub_mipl.nChannels;
-                int sub_widthStep = sub_mipl.widthStep;
-
-                RemoveNoiseTags(labels_sign_numbers, 800, sub_height, sub_width, sub_widthStep, nChannels, sub_data_ptr);
-
-                int label_count = labels_sign_numbers.Count();
-
-                List<int[]> sub_minMaxValues = GetReleventAreas(labels_sign_numbers, sub_height, sub_width, sub_widthStep);
-                //DrawReleventAreas(sub_minMaxValues, label_count, nChannels, widthStep, sub_data_ptr);
-
-                for (int i = 0; i < label_count; i++)
-                {
-                    if (sub_minMaxValues[2][i] != 0)
-                    {
-                        System.Drawing.Rectangle prev_ROI = sub_img.ROI; 
-                        sub_img.ROI = new System.Drawing.Rectangle(sub_minMaxValues[3][i] + 1, sub_minMaxValues[0][i] + 1, (sub_minMaxValues[2][i] - sub_minMaxValues[3][i]) - 1,
-                                        (sub_minMaxValues[1][i] - sub_minMaxValues[0][i]) - 1);
-                        Image<Bgr, byte> num_img = sub_img.Copy(); 
-                        sub_img.ROI = prev_ROI;
-
-                        num_images.Add(num_img);
-                    }
-                }
-            }
-            return num_images;
-        }
-
         public unsafe static void Scale_point_xy(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, float scale_factor, int centerx, int centery)
         {
             int x_orig, y_orig;
@@ -2575,9 +2533,9 @@ namespace SS_OpenCV
             int [] labels = new int[image_size];
 
             int label_counter = 1;
-            for (int y = 1; y < height - 1; y++)
+            for (int x = 1; x < width - 1; x++)
             {
-                for (int x = 1; x < width - 1; x++)
+                for (int y = 1; y < height - 1; y++)
                 {
                     byte* p_Pixel = (data_ptr + x * nChannels + y * widthStep);
                     if (!(p_Pixel[0] == 0 && p_Pixel[1] == 0 && p_Pixel[2] == 0))
@@ -2955,6 +2913,48 @@ namespace SS_OpenCV
             return imageList;
         }
 
+        public unsafe static List<Image<Bgr, byte>> GetAreaInsideSigns(List<Image<Bgr, byte>> SignImages){
+            var num_images = new List<Image<Bgr, byte>>();
+
+            foreach (var sub_img in SignImages)
+            {
+                ConvertRGBToHSV(sub_img);
+                ConvertToB_HSV(sub_img);
+                ImgClosing(sub_img,5);
+                int[] labels_sign_numbers = GetConnectedComponents_BR(sub_img);
+                ConvertHSVToRGB(sub_img);
+
+                MIplImage sub_mipl = sub_img.MIplImage;
+                byte* sub_data_ptr = (byte*)sub_mipl.imageData.ToPointer();
+                int sub_height = sub_img.Height;
+                int sub_width = sub_img.Width;
+                int nChannels = sub_mipl.nChannels;
+                int sub_widthStep = sub_mipl.widthStep;
+
+                RemoveNoiseTags(labels_sign_numbers, 800, sub_height, sub_width, sub_widthStep, nChannels, sub_data_ptr);
+
+                int label_count = labels_sign_numbers.Count();
+
+                List<int[]> sub_minMaxValues = GetReleventAreas(labels_sign_numbers, sub_height, sub_width, sub_widthStep);
+                //DrawReleventAreas(sub_minMaxValues, label_count, nChannels, widthStep, sub_data_ptr);
+
+                for (int i = 0; i < label_count; i++)
+                {
+                    if (sub_minMaxValues[2][i] != 0)
+                    {
+                        System.Drawing.Rectangle prev_ROI = sub_img.ROI; 
+                        sub_img.ROI = new System.Drawing.Rectangle(sub_minMaxValues[3][i] + 1, sub_minMaxValues[0][i] + 1, (sub_minMaxValues[2][i] - sub_minMaxValues[3][i]) - 1,
+                                        (sub_minMaxValues[1][i] - sub_minMaxValues[0][i]) - 1);
+                        Image<Bgr, byte> num_img = sub_img.Copy(); 
+                        sub_img.ROI = prev_ROI;
+
+                        num_images.Add(num_img);
+                    }
+                }
+            }
+            return num_images;
+        }
+
         public unsafe static int CompareNumber(Image<Bgr, byte> number, List<Image<Bgr, byte>> numbersList)
         {
             int res = int.MaxValue;
@@ -2997,24 +2997,7 @@ namespace SS_OpenCV
                 System.Diagnostics.Debug.WriteLine("Number " + min_index.ToString() + " Detected");
                 System.Diagnostics.Debug.WriteLine(res.ToString());
             }
-            return res;
-        }
-
-        public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
-                                out List<string[]> warningSign, out List<string[]> prohibitionSign)
-        {
-            // GetWhiteObjects(otsu, out whiteObjects);
-            // GetRedObjects(otsu_red, out redObjects);
-
-            // FindLimitSigns(whiteObjects, redObjects, out limitSign);
-            // FindWarningSigns(whiteObjects, redObjects, out warningSign);
-            // FindProhibitionSigns(whiteObjects, redObjects, out prohibitionSign);
-
-
-            // Return
-            limitSign = new List<string[]>();
-            warningSign = new List<string[]>();
-            prohibitionSign = new List<string[]>();
+            return min_index;
         }
 
         public unsafe static Image<Bgr, byte> Signs(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, out List<string[]> limitSign, 
@@ -3068,24 +3051,31 @@ namespace SS_OpenCV
                 }
             }
 
+            List<int> limit_numbers = new List<int>();
             var num_images = GetAreaInsideSigns(SignImages);
             var DefaultNumImages = LoadNumbersImages();
             for (int i = 1; i < num_images.Count; i++)
             {
-                CompareNumber(num_images.ElementAt(i), DefaultNumImages);
+                int value = CompareNumber(num_images.ElementAt(i), DefaultNumImages);
+                if (value != -1)
+                {
+                    limit_numbers.Add(value);
+                }
             }
 
-            //return img;
-            //return DefaultNumImages[1];
-            //return num_images.ElementAt(3); //level 1 image
-            //return sub_img;
-            //return num_images.ElementAt(6); //level 4 image
+            int n = 0;
+            if (limit_numbers.Count == 3)
+            {
+                n = 100 * limit_numbers[0] + 10 * limit_numbers[1] + limit_numbers[2];
+            }
+            else if (limit_numbers.Count == 2)
+            {
+                n = 10 * limit_numbers[0] + limit_numbers[1];
+            }
+
+            System.Diagnostics.Debug.WriteLine("Limite " + n.ToString());
+
             return imgCopy;
-
-
-            //DetectSigns(otsu, otsu_red, out limitSign, out warningSign, out prohibitionSign);
-
-            //return img;
         }
     }
 }
