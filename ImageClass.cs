@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Windows.Forms;
 using System.Text;
 using Emgu.CV.Structure;
 using Emgu.CV;
@@ -17,8 +18,6 @@ namespace SS_OpenCV
         /// <param name="img">Image</param>
         public unsafe static void Negative(Image<Bgr, byte> img)
         {
-            //Image<Bgr, byte> num1 = new Image<Bgr, byte>("digitos\\1.png");
-            /*
             int x, y;
             MIplImage mipl = img.MIplImage;
             byte* data_ptr = (byte*)mipl.imageData.ToPointer();
@@ -29,9 +28,9 @@ namespace SS_OpenCV
             int padding = mipl.widthStep - mipl.nChannels * mipl.width;
 
 
-            for (y = 0; y < height; y++)
+            for(y = 0; y < height; y++)
             {
-                for (x = 0; x < width; x++)
+                for(x = 0; x < width; x++)
                 {
                     blue = data_ptr[0];
                     green = data_ptr[1];
@@ -46,9 +45,6 @@ namespace SS_OpenCV
                 }
                 data_ptr += padding;
             }
-
-            ConvertToBW_Otsu(img);
-            */
         }
 
         /// <summary>
@@ -390,6 +386,43 @@ namespace SS_OpenCV
 
         public unsafe static void Translation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, int trans_x, int trans_y)
         {
+            int x, y;
+            MIplImage mipl = img.MIplImage;
+            byte* data_ptr = (byte*)mipl.imageData.ToPointer();
+            int nChannels = mipl.nChannels;
+            int height = img.Height;
+            int width = img.Width;
+            int padding = mipl.widthStep - mipl.nChannels * mipl.width;
+            int widthStep = mipl.widthStep;
+
+            Negative(img);
+            ConvertToBW_Otsu(img);
+
+            // Find Number Function
+            Image<Bgr, byte> num = new Image<Bgr, byte>("..\\..\\digitos\\1.png");
+            Negative(num);
+            ConvertToBW_Otsu(num);
+            byte* data_number_ptr = (byte*)num.MIplImage.imageData.ToPointer();
+
+            int difference = 0;
+            for(y = 0; y < height; y++)
+            {
+                for(x = 0; x < width; x++)
+                {
+                    difference += Math.Abs((data_ptr + x * nChannels + y * widthStep)[0] - (data_number_ptr + x * nChannels + y * widthStep)[0]);
+                }
+            }
+            difference = difference / 255; // Normalize difference for each pixel
+
+            if(difference < (width * height * 0.05))
+            {
+                System.Diagnostics.Debug.WriteLine("Number 1 Detected");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("Not number 1");
+            }
+            /*
             if (trans_x >= 0 && trans_y >= 0)
             {
                 TranslationXPositiveYPositive(img, imgCopy, trans_x, trans_y);
@@ -406,6 +439,7 @@ namespace SS_OpenCV
             {
                 TranslationXNegativeYNegative(img, imgCopy, trans_x, trans_y);
             }
+            */
         }
 
         public unsafe static void Rotation(Image<Bgr, byte> img, Image<Bgr, byte> imgCopy, double degrees)
@@ -2875,6 +2909,60 @@ namespace SS_OpenCV
             }
         }
 
+        public unsafe static List<Image<Bgr, byte>> LoadNumbersImages()
+        {
+            List<Image<Bgr, byte>> imageList = new List<Image<Bgr, byte>>();
+            // Open images
+            Image<Bgr, byte> num0 = new Image<Bgr, byte>("..\\..\\digitos\\0.png");
+            Image<Bgr, byte> num1 = new Image<Bgr, byte>("..\\..\\digitos\\1.png");
+            Image<Bgr, byte> num2 = new Image<Bgr, byte>("..\\..\\digitos\\2.png");
+            Image<Bgr, byte> num3 = new Image<Bgr, byte>("..\\..\\digitos\\3.png");
+            Image<Bgr, byte> num4 = new Image<Bgr, byte>("..\\..\\digitos\\4.png");
+            Image<Bgr, byte> num5 = new Image<Bgr, byte>("..\\..\\digitos\\5.png");
+            Image<Bgr, byte> num6 = new Image<Bgr, byte>("..\\..\\digitos\\6.png");
+            Image<Bgr, byte> num7 = new Image<Bgr, byte>("..\\..\\digitos\\7.png");
+            Image<Bgr, byte> num8 = new Image<Bgr, byte>("..\\..\\digitos\\8.png");
+            Image<Bgr, byte> num9 = new Image<Bgr, byte>("..\\..\\digitos\\9.png");
+            
+            // Invert them
+            Negative(num0);
+            Negative(num1);
+            Negative(num2);
+            Negative(num3);
+            Negative(num4);
+            Negative(num5);
+            Negative(num6);
+            Negative(num7);
+            Negative(num8);
+            Negative(num9);
+
+            // Make them binary
+            ConvertToBW_Otsu(num0);
+            ConvertToBW_Otsu(num1);
+            ConvertToBW_Otsu(num2);
+            ConvertToBW_Otsu(num3);
+            ConvertToBW_Otsu(num4);
+            ConvertToBW_Otsu(num5);
+            ConvertToBW_Otsu(num6);
+            ConvertToBW_Otsu(num7);
+            ConvertToBW_Otsu(num8);
+            ConvertToBW_Otsu(num9);
+
+            // Add to the list
+            imageList.Add(num0);
+            imageList.Add(num1);
+            imageList.Add(num2);
+            imageList.Add(num3);
+            imageList.Add(num4);
+            imageList.Add(num5);
+            imageList.Add(num6);
+            imageList.Add(num7);
+            imageList.Add(num8);
+            imageList.Add(num9);
+
+            return imageList;
+        }
+
         public unsafe static void DetectSigns(Image<Bgr, byte> otsu, Image<Bgr, byte> otsu_red, out List<string[]> limitSign, 
                                 out List<string[]> warningSign, out List<string[]> prohibitionSign)
         {
@@ -2885,7 +2973,6 @@ namespace SS_OpenCV
             // FindWarningSigns(whiteObjects, redObjects, out warningSign);
             // FindProhibitionSigns(whiteObjects, redObjects, out prohibitionSign);
 
-            Image<Bgr, byte> num1 = new Image<Bgr, byte>("dijitos\\1.png");
 
             // Return
             limitSign = new List<string[]>();
